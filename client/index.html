@@ -1,6 +1,6 @@
 <!-- @format -->
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -14,15 +14,17 @@
       <canvas id="myCanvas"></canvas>
     </div>
     <div id="tootip">
-      <button id="clearBtn" onclick="clearCanvas()">Clear Canvas</button>
-      <button id="undoBtn" onclick="undoCanvas()">Undo</button>
-      <button id="redoBtn" onclick="redoCanvas()">Redo</button>
+      <button id="clearBtn">Clear Canvas</button>
+      <button id="undoBtn">Undo</button>
+      <button id="redoBtn">Redo</button>
       <button id="penBtn">Pen</button>
       <button id="eraserBtn">Eraser</button>
       <button id="rectangleBtn">Rectangle</button>
       <label for="colorPicker">Choose Color:</label>
       <input type="color" id="colorPicker" />
     </div>
-    <script src="canvas.js"></script>
+    <script src="http://localhost:3000/socket.io/socket.io.js"></script>
+    <script type="module" src="socket.js"></script>
+    <script type="module" src="canvas.js"></script>
   </body>
 </html>

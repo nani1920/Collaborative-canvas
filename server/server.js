@@ -1,9 +1,24 @@
 /** @format */
+
+const { initSocket } = require("./rooms");
 const express = require("express");
+const cors = require("cors");
+const http = require("http");
 const app = express();
-app.listen(3000, () => {
-  console.log("Server is running on port 3000");
-});
+const server = http.createServer(app);
+initSocket(server);
+
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST"],
+  }),
+);
+
 app.get("/", (req, res) => {
   res.send("Hello World!");
+});
+
+server.listen(3000, () => {
+  console.log("server is running at http://localhost:3000");
 });

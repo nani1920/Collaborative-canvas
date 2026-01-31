@@ -1,5 +1,6 @@
 /** @format */
 
+import { socket } from "./socket.js";
 // canvas setup
 let canvas = document.getElementById("myCanvas");
 canvas.width = window.innerWidth - 60;
@@ -53,6 +54,7 @@ canvas.addEventListener("mousedown", (event) => {
     startX = x;
     startY = y;
   }
+  socket.emit("canvas:mouse-down", { x, y, tool });
 });
 
 canvas.addEventListener("mousemove", (event) => {
@@ -74,7 +76,9 @@ canvas.addEventListener("mousemove", (event) => {
       ctx.rect(startX, startY, x - startX, y - startY);
       ctx.stroke();
     }
+    socket.emit("canvas:mouse-move", { x, y, tool });
   }
+  socket.emit("cursor:move", { x, y });
 });
 
 canvas.addEventListener("mouseup", (event) => {
@@ -103,7 +107,7 @@ function clearCanvas() {
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
-// document.getElementById("clearBtn").addEventListener("click", clearCanvas);
+document.getElementById("clearBtn").addEventListener("click", clearCanvas);
 
 //
 // undo function
@@ -118,6 +122,7 @@ function undoCanvas() {
   }
 }
 
+document.getElementById("undoBtn").addEventListener("click", undoCanvas);
 // redo function
 function redoCanvas() {
   if (index < restore_array.length - 1) {
@@ -125,6 +130,7 @@ function redoCanvas() {
     ctx.putImageData(restore_array[index], 0, 0);
   }
 }
+document.getElementById("redoBtn").addEventListener("click", redoCanvas);
 
 //
 //set up tool buttons
@@ -159,3 +165,30 @@ function setColor(newColor) {
 document.getElementById("colorPicker").addEventListener("change", (event) => {
   setColor(event.target.value);
 });
+
+function reDraw(x, y, tool) {
+  console.log(tool);
+  if (tool === toolArray.pen) {
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  } else if (tool === toolArray.rectangle) {
+    if (index >= 0) {
+      ctx.putImageData(savedImageData, 0, 0);
+    } else {
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    ctx.beginPath();
+    ctx.strokeStyle = pencolor;
+    ctx.lineWidth = 4;
+    ctx.rect(startX, startY, x - startX, y - startY);
+    ctx.stroke();
+  } else {
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.lineWidth = 10;
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  }
+}
+
+export { reDraw };
