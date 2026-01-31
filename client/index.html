@@ -6,25 +6,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="index.css" />
   </head>
   <body>
-    <h1 class="heading">Collaborative Canvas</h1>
-    <div>
-      <canvas id="myCanvas"></canvas>
+    <div class="container">
+      <h1>Canvas</h1>
+      <p>Join a Room and Start Collaborating</p>
+      <form id="form">
+        <label for="userName">username</label>
+        <input type="text" id="userName" placeholder="nani12..." required />
+        <label for="roomId">Room Id</label>
+        <input type="text" id="roomId" placeholder="122..." required />
+        <button type="submit" id="submitBtn">Enter Room</button>
+      </form>
     </div>
-    <div id="tootip">
-      <button id="clearBtn">Clear Canvas</button>
-      <button id="undoBtn">Undo</button>
-      <button id="redoBtn">Redo</button>
-      <button id="penBtn">Pen</button>
-      <button id="eraserBtn">Eraser</button>
-      <button id="rectangleBtn">Rectangle</button>
-      <label for="colorPicker">Choose Color:</label>
-      <input type="color" id="colorPicker" />
-    </div>
-    <script src="http://localhost:3000/socket.io/socket.io.js"></script>
-    <script type="module" src="socket.js"></script>
-    <script type="module" src="canvas.js"></script>
+    <script src="main.js"></script>
   </body>
 </html>

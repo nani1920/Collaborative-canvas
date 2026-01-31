@@ -3,19 +3,19 @@
 import { socket } from "./socket.js";
 // canvas setup
 let canvas = document.getElementById("myCanvas");
+
 canvas.width = window.innerWidth - 60;
 canvas.height = window.innerHeight * 0.7;
+let cursorCanvas = document.getElementById("cursorLayer");
+cursorCanvas.width = window.innerWidth - 60;
+cursorCanvas.height = window.innerHeight * 0.7;
+let cursorCtx = cursorCanvas.getContext("2d");
 canvas.style.cursor = "url('public/pen.png') 0 32 , auto";
 let isDrawing = false;
-let restore_array = [];
-let index = -1;
-let tool_size = 2;
 let toolArray = { pen: "PEN", eraser: "ERASER", rectangle: "RECTANGLE" };
 let tool = toolArray.pen;
 let pencolor = "black";
-let startX = 0;
-let startY = 0;
-
+let otherCursors = {};
 // get context
 let ctx = canvas.getContext("2d");
 ctx.fillStyle = "white";
@@ -33,11 +33,14 @@ function getCanvasCoordinates(event) {
   };
 }
 
-let savedImageData;
+let currentStroke = [];
+let localStrokes = [];
 // mouse events
-canvas.addEventListener("mousedown", (event) => {
+function mouseDownEventTrigger(event) {
   const { x, y } = getCanvasCoordinates(event);
   isDrawing = true;
+
+  currentStroke = [];
   ctx.beginPath();
   if (tool === toolArray.eraser) {
     ctx.globalCompositeOperation = "destination-out";
@@ -48,57 +51,67 @@ canvas.addEventListener("mousedown", (event) => {
     ctx.lineCap = "round";
     ctx.strokeStyle = pencolor;
     ctx.moveTo(x, y);
-  } else {
-    ctx.globalCompositeOperation = "source-over";
-    savedImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    startX = x;
-    startY = y;
   }
-  socket.emit("canvas:mouse-down", { x, y, tool });
-});
-
-canvas.addEventListener("mousemove", (event) => {
+}
+let lastEmit = 0;
+function mouseMoveEventTrigger(event) {
   const { x, y } = getCanvasCoordinates(event);
   if (isDrawing) {
+    currentStroke.push({ x, y });
     if (tool === toolArray.pen || tool === toolArray.eraser) {
       ctx.lineTo(x, y);
       ctx.stroke();
-    } else if (tool === toolArray.rectangle) {
-      if (index >= 0) {
-        ctx.putImageData(savedImageData, 0, 0);
-      } else {
-        ctx.fillStyle = "white";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      }
-      ctx.beginPath();
-      ctx.strokeStyle = pencolor;
-      ctx.lineWidth = 4;
-      ctx.rect(startX, startY, x - startX, y - startY);
-      ctx.stroke();
     }
-    socket.emit("canvas:mouse-move", { x, y, tool });
+    socket.emit("canvas:mouse-move", {
+      x,
+      y,
+      tool,
+      color: pencolor,
+      lineWidth: tool === toolArray.eraser ? 10 : 4,
+      socketId: socket.id,
+    });
   }
-  socket.emit("cursor:move", { x, y });
-});
 
-canvas.addEventListener("mouseup", (event) => {
+  let now = Date.now();
+  if (now - lastEmit > 30) {
+    socket.emit("cursor:move", { x, y });
+    lastEmit = now;
+  }
+}
+
+function mouseUpEventTrigger(event) {
   const { x, y } = getCanvasCoordinates(event);
+  currentStroke.push({ x, y });
   isDrawing = false;
   ctx.beginPath();
-  if (tool !== toolArray.pen && tool !== toolArray.eraser) {
-    ctx.strokeStyle = pencolor;
-    ctx.lineWidth = 4;
-    ctx.rect(startX, startY, x - startX, y - startY);
-    ctx.stroke();
-    ctx.closePath();
-  }
-  restore_array.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
-  index += 1;
+
+  const strokeData = {
+    socketId: socket.id,
+    tool,
+    color: pencolor,
+    lineWidth: tool === toolArray.eraser ? 10 : 4,
+    points: currentStroke,
+  };
+  localStrokes.push(strokeData);
+  socket.emit("canvas:mouse-up", strokeData);
+}
+function mouseLeaveEventTrigger(event) {
+  isDrawing = false;
+  ctx.beginPath();
+}
+
+canvas.addEventListener("mousedown", (event) => {
+  mouseDownEventTrigger(event);
+});
+canvas.addEventListener("mousemove", (event) => {
+  mouseMoveEventTrigger(event);
+});
+canvas.addEventListener("mouseup", (event) => {
+  mouseUpEventTrigger(event);
 });
 
 canvas.addEventListener("mouseleave", (event) => {
-  isDrawing = false;
-  ctx.beginPath();
+  mouseLeaveEventTrigger(event);
 });
 
 //
@@ -112,24 +125,18 @@ document.getElementById("clearBtn").addEventListener("click", clearCanvas);
 //
 // undo function
 function undoCanvas() {
-  if (index <= 0) {
-    restore_array = [];
-    index = -1;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  } else {
-    index -= 1;
-    ctx.putImageData(restore_array[index], 0, 0);
+  for (let i = localStrokes.length - 1; i >= 0; i--) {
+    if (localStrokes[i].socketId === socket.id) {
+      localStrokes.splice(i, 1);
+      break;
+    }
   }
+  socket.emit("canvas:undo");
 }
 
 document.getElementById("undoBtn").addEventListener("click", undoCanvas);
 // redo function
-function redoCanvas() {
-  if (index < restore_array.length - 1) {
-    index += 1;
-    ctx.putImageData(restore_array[index], 0, 0);
-  }
-}
+function redoCanvas() {}
 document.getElementById("redoBtn").addEventListener("click", redoCanvas);
 
 //
@@ -140,7 +147,6 @@ function setTool(newTool) {
     canvas.style.cursor = "url('public/eraser.png') 0 32 , auto";
   } else if (tool === toolArray.pen) {
     canvas.style.cursor = "url('public/pen.png') 0 32 , auto";
-    console.log(canvas.style.cursor);
   } else if (tool === toolArray.rectangle) {
     canvas.style.cursor = "crosshair";
   }
@@ -166,29 +172,89 @@ document.getElementById("colorPicker").addEventListener("change", (event) => {
   setColor(event.target.value);
 });
 
-function reDraw(x, y, tool) {
-  console.log(tool);
-  if (tool === toolArray.pen) {
-    ctx.lineTo(x, y);
-    ctx.stroke();
-  } else if (tool === toolArray.rectangle) {
-    if (index >= 0) {
-      ctx.putImageData(savedImageData, 0, 0);
-    } else {
-      ctx.fillStyle = "white";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
+function replayStroke(strokes) {
+  console.log(strokes);
+
+  const { tool, points, color, lineWidth, socketId } = strokes;
+  if (tool == toolArray.pen || tool == toolArray.eraser) {
     ctx.beginPath();
-    ctx.strokeStyle = pencolor;
-    ctx.lineWidth = 4;
-    ctx.rect(startX, startY, x - startX, y - startY);
+    ctx.globalCompositeOperation =
+      tool === toolArray.eraser ? "destination-out" : "source-over";
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    ctx.moveTo(points[0].x, points[0].y);
+    points.forEach((p) => ctx.lineTo(p.x, p.y));
     ctx.stroke();
-  } else {
+    ctx.closePath();
+  }
+  remoteLastPoints[socketId] = null;
+}
+function redrawRoomHistory(history) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "white";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  history.forEach((stroke) => replayStroke(stroke));
+}
+
+function reMouseDown(x, y, tool) {
+  ctx.beginPath();
+  if (tool === toolArray.eraser) {
     ctx.globalCompositeOperation = "destination-out";
     ctx.lineWidth = 10;
-    ctx.lineTo(x, y);
-    ctx.stroke();
+  } else if (tool === toolArray.pen) {
+    ctx.globalCompositeOperation = "source-over";
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.strokeStyle = pencolor;
+    ctx.moveTo(x, y);
   }
 }
 
-export { reDraw };
+function drawCursors(data) {
+  const { x, y, username, socketId } = data;
+  otherCursors[socketId] = { x, y, username };
+  cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
+  Object.values(otherCursors).forEach((cursor) => {
+    console.log(cursor);
+    cursorCtx.beginPath();
+    cursorCtx.arc(cursor.x, cursor.y, 5, 0, Math.PI * 2);
+    cursorCtx.fillStyle = "red";
+    cursorCtx.fill();
+    cursorCtx.closePath();
+
+    cursorCtx.font = "12px Arial";
+    cursorCtx.fillStyle = "black";
+    cursorCtx.fillText(cursor.username, cursor.x + 8, cursor.y - 8);
+  });
+}
+
+let remoteLastPoints = {};
+function drawLiveCursors(data) {
+  const { x, y, tool, color, lineWidth, socketId } = data;
+  console.log("socket", socketId);
+  if (!remoteLastPoints[socketId]) {
+    remoteLastPoints[socketId] = { x, y };
+    return;
+  }
+
+  ctx.beginPath();
+
+  ctx.globalCompositeOperation =
+    tool === toolArray.eraser ? "destination-out" : "source-over";
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  ctx.lineCap = "round";
+  ctx.moveTo(remoteLastPoints[socketId].x, remoteLastPoints[socketId].y);
+  ctx.lineTo(x, y);
+  ctx.stroke();
+  ctx.closePath();
+  remoteLastPoints[socketId] = { x, y };
+}
+export {
+  reMouseDown,
+  replayStroke,
+  redrawRoomHistory,
+  localStrokes,
+  drawCursors,
+  drawLiveCursors,
+};
