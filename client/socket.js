@@ -19,7 +19,7 @@ const roomDetails = {
   username: username,
   roomId: roomId,
 };
-const socket = io("http://localhost:3000");
+const socket = io("https://collaborative-canvas-o37o.onrender.com");
 
 // to register the events....
 registerEmitters({
