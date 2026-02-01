@@ -1,9 +1,8 @@
 {
   "version": 2,
-  "builds": [
-    { "src": "*.html", "use": "@vercel/static" },
-    { "src": "*.js", "use": "@vercel/static" },
-    { "src": "*.css", "use": "@vercel/static" }
-  ],
-  "routes": [{ "src": "/(.*)", "dest": "/index.html" }]
+  "routes": [
+    { "src": "/(.*)\\.(css|js|png|jpg|jpeg|gif|svg|ico)$", "dest": "/$1.$2" },
+    { "src": "/canvas", "dest": "/canvas.html" },
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
 }
