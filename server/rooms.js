@@ -39,18 +39,21 @@ function initSocket(server) {
       const users = getUsersFromRoom(roomId);
       io.to(roomId).emit("room:online-users", users);
     });
-    socket.on("canvas:mouse-down", (data) => {
-      socket.emit("canvas:receive-mouse-down", data);
-    });
+
     socket.on("canvas:mouse-move", (data) => {
       const roomId = getRoomId(socket.id);
-      socket.to(roomId).emit("canvas:receive-mouse-move", data);
+      socket.to(roomId).emit("canvas:receive-mouse-move", {
+        socketId: socket.id,
+        ...data,
+      });
     });
     socket.on("canvas:mouse-up", (data) => {
       const roomId = getRoomId(socket.id);
 
       addEventToRoomHistory(roomId, socket.id, data);
-      socket.to(roomId).emit("canvas:receive-mouse-up", data);
+      socket
+        .to(roomId)
+        .emit("canvas:receive-mouse-up", { socketId: socket.id, ...data });
     });
     socket.on("canvas:clear", () => {
       const roomId = getRoomId(socket.id);

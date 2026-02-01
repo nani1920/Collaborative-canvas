@@ -1,16 +1,11 @@
 /** @format */
 
-import { socket } from "./socket.js";
 // canvas setup
 let canvas = document.getElementById("myCanvas");
 let cursorCanvas = document.getElementById("cursorLayer");
 let ctx = canvas.getContext("2d");
 let cursorCtx = cursorCanvas.getContext("2d");
 
-// canvas.width = window.innerWidth - 60;
-// canvas.height = window.innerHeight * 0.7;
-// cursorCanvas.width = window.innerWidth - 60;
-// cursorCanvas.height = window.innerHeight * 0.7;
 canvas.style.cursor = "url('public/pen.png') 0 32 , auto";
 let isDrawing = false;
 let toolArray = { pen: "PEN", eraser: "ERASER", rectangle: "RECTANGLE" };
@@ -19,10 +14,12 @@ let pencolor = "black";
 let lineWidth = 5;
 let otherCursors = {};
 let isCursorInsideCanvas = false;
-// get context
-ctx.fillStyle = "white";
-ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+let emitters = {};
+function registerEmitters(e) {
+  emitters = e;
+}
+// get context
 function resizeCanvas() {
   const rect = canvas.parentElement.getBoundingClientRect();
   canvas.width = rect.width;
@@ -33,6 +30,7 @@ function resizeCanvas() {
 }
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
+
 // get canvas coordinates
 function getCanvasCoordinates(event) {
   const rect = canvas.getBoundingClientRect();
@@ -47,7 +45,7 @@ function getCanvasCoordinates(event) {
 
 let currentStroke = [];
 let localStrokes = [];
-// mouse events
+// mouse events functions
 function mouseEnterEventTrigger(event) {
   isCursorInsideCanvas = true;
 }
@@ -76,19 +74,19 @@ function mouseMoveEventTrigger(event) {
       ctx.lineTo(x, y);
       ctx.stroke();
     }
-    socket.emit("canvas:mouse-move", {
+    emitters.emitMouseMove?.({
       x,
       y,
       tool,
       color: pencolor,
       lineWidth: lineWidth,
-      socketId: socket.id,
     });
   }
 
   let now = Date.now();
   if (isCursorInsideCanvas && now - lastEmit > 30) {
-    socket.emit("cursor:move", { x, y });
+    // socket.emit("cursor:move", { x, y });
+    emitters.emitCursorMove?.({ x, y });
     lastEmit = now;
   }
 }
@@ -100,71 +98,44 @@ function mouseUpEventTrigger(event) {
   ctx.beginPath();
 
   const strokeData = {
-    socketId: socket.id,
     tool,
     color: pencolor,
     lineWidth: lineWidth,
     points: currentStroke,
   };
   localStrokes.push(strokeData);
-  socket.emit("canvas:mouse-up", strokeData);
+  emitters.emitCanvasMouseUp?.(strokeData);
 }
 function mouseLeaveEventTrigger(event) {
   isDrawing = false;
   isCursorInsideCanvas = false;
   ctx.beginPath();
-  socket.emit("cursor:leave");
+  emitters.emitCursorLeave?.();
 }
-
-canvas.addEventListener("mouseenter", (event) => {
-  mouseEnterEventTrigger(event);
-});
-canvas.addEventListener("mousedown", (event) => {
-  mouseDownEventTrigger(event);
-});
-canvas.addEventListener("mousemove", (event) => {
-  mouseMoveEventTrigger(event);
-});
-canvas.addEventListener("mouseup", (event) => {
-  mouseUpEventTrigger(event);
-});
-
-canvas.addEventListener("mouseleave", (event) => {
-  mouseLeaveEventTrigger(event);
-});
 
 //
 // canvas clear function
 function clearCanvas() {
-  ctx.fillStyle = "white";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   localStrokes.length = 0;
 }
-document.getElementById("clearBtn").addEventListener("click", () => {
-  socket.emit("canvas:clear");
-  clearCanvas();
-});
 
 //
 // undo function
 function undoCanvas() {
-  for (let i = localStrokes.length - 1; i >= 0; i--) {
-    if (localStrokes[i].socketId === socket.id) {
-      localStrokes.splice(i, 1);
-      break;
-    }
-  }
-  socket.emit("canvas:undo");
+  // for (let i = localStrokes.length - 1; i >= 0; i--) {
+  //   if (localStrokes[i].socketId === socket.id) {
+  //     localStrokes.splice(i, 1);
+  //     break;
+  //   }
+  // }
+  emitters.emitCanvasUndo?.();
 }
-document.getElementById("undoBtn").addEventListener("click", undoCanvas);
-
 //
 // redo function
 function redoCanvas() {
-  socket.emit("canvas:redo");
+  emitters.emitCanvasRedo?.();
 }
-document.getElementById("redoBtn").addEventListener("click", redoCanvas);
-
 //
 //set up tool buttons
 function setTool(newTool) {
@@ -173,41 +144,22 @@ function setTool(newTool) {
     canvas.style.cursor = "url('public/eraser.png') 0 32 , auto";
   } else if (tool === toolArray.pen) {
     canvas.style.cursor = "url('public/pen.png') 0 32 , auto";
-  } else if (tool === toolArray.rectangle) {
-    canvas.style.cursor = "crosshair";
   }
 }
-document.getElementById("penBtn").addEventListener("click", () => {
-  setTool(toolArray.pen);
-});
-document.getElementById("eraserBtn").addEventListener("click", () => {
-  setTool(toolArray.eraser);
-});
-document.getElementById("rectangleBtn").addEventListener("click", () => {
-  setTool(toolArray.rectangle);
-});
 
 //
 // set up color picker
 function setColor(newColor) {
   pencolor = newColor;
 }
-document.getElementById("colorPicker").addEventListener("change", (event) => {
-  setColor(event.target.value);
-});
 
 // set lineWidth
 function setLineWidth(newLineWidth) {
   lineWidth = newLineWidth;
   document.getElementById("lineWidthValue").textContent = newLineWidth;
 }
-document.getElementById("lineWidth").addEventListener("input", (event) => {
-  setLineWidth(event.target.value);
-});
 
 function replayStroke(strokes) {
-  console.log(strokes);
-
   const { tool, points, color, lineWidth, socketId } = strokes;
   if (tool == toolArray.pen || tool == toolArray.eraser) {
     ctx.beginPath();
@@ -222,10 +174,9 @@ function replayStroke(strokes) {
   }
   remoteLastPoints[socketId] = null;
 }
+
 function redrawRoomHistory(history) {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "white";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
   history.forEach((stroke) => replayStroke(stroke));
 }
 
@@ -242,23 +193,31 @@ function reMouseDown(x, y, tool) {
     ctx.moveTo(x, y);
   }
 }
+
 const color_pallete = [
-  "#E53935", // red
-  "#D81B60", // pink
-  "#8E24AA", // purple
-  "#5E35B1", // deep purple
-  "#3949AB", // indigo
-  "#1E88E5", // blue
-  "#039BE5", // light blue
-  "#00897B", // teal
-  "#43A047", // green
-  "#7CB342", // light green
-  "#FDD835", // yellow
-  "#FB8C00", // orange
-  "#F4511E", // deep orange
-  "#6D4C41", // brown
-  "#546E7A", // blue grey
+  "#E53935",
+  "#D81B60",
+  "#8E24AA",
+  "#5E35B1",
+  "#3949AB",
+  "#1E88E5",
+  "#039BE5",
+  "#00897B",
+  "#43A047",
+  "#7CB342",
+  "#FDD835",
+  "#FB8C00",
+  "#F4511E",
+  "#6D4C41",
+  "#546E7A",
+  "#6366f1",
+  "#22c55e",
+  "#f59e0b",
+  "#ec4899",
+  "#06b6d4",
+  "#8b5cf6",
 ];
+
 const cursorColor = {};
 function getCursorColor(socketId) {
   if (cursorColor[socketId]) return cursorColor[socketId];
@@ -267,12 +226,17 @@ function getCursorColor(socketId) {
   cursorColor[socketId] = color;
   return color;
 }
-let cursorImg = new Image();
+
+let cursorImg;
 let cursorImgLoaded = false;
-cursorImg.src = "public/cursor.png";
-cursorImg.onload = () => {
-  cursorImgLoaded = true;
-};
+function loadOnlineCursorImage() {
+  cursorImg = new Image();
+  cursorImg.src = "public/cursor.png";
+  cursorImg.onload = () => {
+    cursorImgLoaded = true;
+  };
+}
+loadOnlineCursorImage();
 
 function redrawAllCursors() {
   cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
@@ -287,6 +251,7 @@ function redrawAllCursors() {
     cursorCtx.fillText(cursor.username, cursor.x + 8, cursor.y - 8);
   });
 }
+
 function drawCursors(data) {
   const { x, y, username, socketId } = data;
   otherCursors[socketId] = { x, y, username, socketId };
@@ -328,12 +293,60 @@ function renderOnlineUsers(users) {
   userListEl.innerHTML = "";
   users.forEach((user) => {
     const li = document.createElement("li");
-    li.textContent = user.username;
-    console.log(li);
+    const iconCont = document.createElement("div");
+    const spanItem = document.createElement("span");
+
+    li.classList.add("userCard");
+    spanItem.classList.add("username");
+    iconCont.style.background =
+      color_pallete[Math.floor(Math.random() * color_pallete.length)];
+    iconCont.classList.add("icon-cont");
+    iconCont.textContent = user.username[0].toUpperCase();
+    spanItem.textContent = user.username.toUpperCase();
+    li.appendChild(iconCont);
+    li.appendChild(spanItem);
     userListEl.appendChild(li);
   });
 }
 
+//
+//canvas event listeners
+canvas.addEventListener("mouseenter", (event) => {
+  mouseEnterEventTrigger(event);
+});
+canvas.addEventListener("mousedown", (event) => {
+  mouseDownEventTrigger(event);
+});
+canvas.addEventListener("mousemove", (event) => {
+  mouseMoveEventTrigger(event);
+});
+canvas.addEventListener("mouseup", (event) => {
+  mouseUpEventTrigger(event);
+});
+
+canvas.addEventListener("mouseleave", (event) => {
+  mouseLeaveEventTrigger(event);
+});
+
+document.getElementById("clearBtn").addEventListener("click", () => {
+  emitters.emitCanvasClear?.();
+  clearCanvas();
+});
+document.getElementById("undoBtn").addEventListener("click", undoCanvas);
+document.getElementById("redoBtn").addEventListener("click", redoCanvas);
+
+document.getElementById("penBtn").addEventListener("click", () => {
+  setTool(toolArray.pen);
+});
+document.getElementById("eraserBtn").addEventListener("click", () => {
+  setTool(toolArray.eraser);
+});
+document.getElementById("colorPicker").addEventListener("input", (event) => {
+  setColor(event.target.value);
+});
+document.getElementById("lineWidth").addEventListener("input", (event) => {
+  setLineWidth(event.target.value);
+});
 export {
   reMouseDown,
   replayStroke,
@@ -344,4 +357,5 @@ export {
   updateCursorArray,
   clearCanvas,
   renderOnlineUsers,
+  registerEmitters,
 };

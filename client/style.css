@@ -3,102 +3,195 @@
 body {
   margin: 0;
   padding: 0;
-  overflow: hidden;
 }
 .header {
-  border: 1px solid red;
+  top: 0;
+  left: 45%;
+  position: absolute;
+  z-index: 10;
 }
 .heading {
   text-align: center;
-  font-family: "Arial", sans-serif;
-  margin-top: 20px;
-  color: #333;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: #161c29;
+  text-transform: capitalize;
+  letter-spacing: 0.3px;
 }
-.canvasWrapper {
+.canvasStage {
   width: 100%;
-  max-width: 1300px;
-  height: 500px;
+  /* max-width: 1350px; */
+  height: calc(100vh - 20px);
   position: relative;
-  border: 2px dashed #000;
   border-radius: 16px;
-  display: flex;
-  align-self: center;
-  margin: 20px auto;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 canvas {
+  position: absolute;
+  inset: 0; /* top:0,bottom:0,left:0,right:0*/
   border-radius: 20px;
   width: 100%;
   height: 100%;
   display: block;
 }
 
+#myCanvas {
+  z-index: 1;
+}
 #cursorLayer {
   position: absolute;
-  top: 0;
-  left: 0;
+  z-index: 2;
   pointer-events: none;
 }
-#clearBtn {
-  margin-left: 30px;
-  padding: 10px 20px;
+#dotBackground {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  z-index: 0;
+  background-color: #ffffff;
+  background-image: radial-gradient(#d1d5db 0.6px, transparent 1px);
+  background-size: 20px 20px;
+}
+#tooltip {
+  position: absolute;
+  bottom: 5%;
+  left: 20%;
+  z-index: 10;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  box-shadow: 0 20px 30px rgba(0, 0, 0, 0.12);
+  background-color: #fffcfc;
+  padding: 10px 10px;
+  border-radius: 25px;
+}
+#tooltip button:hover {
+  transform: translateY(-5px);
+  transition: all transform 0.2s;
+}
+#onlineUsersCont {
+  position: absolute;
+  bottom: 10px;
+  right: 1%;
+  z-index: 10;
+  width: 180px;
+  overflow-y: scroll;
+  scrollbar-width: none;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    Cantarell,
+    "Open Sans",
+    "Helvetica Neue",
+    sans-serif;
+}
+#onlineUsersCont span {
+  display: block;
   font-size: 16px;
-  background-color: #ff4d4d;
-  color: white;
-  border: none;
-  border-radius: 5px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 8px;
+  letter-spacing: 0.3px;
+}
+#onlineUsers {
+  padding: 0;
+}
+.userCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 8px;
   cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+.username {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1f2937;
+}
+.icon-cont {
+  height: 28px;
+  width: 28px;
+  border-radius: 50%;
+
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.tooltip-img {
+  height: 20px;
+  width: 20px;
+}
+#clearBtn {
+  padding: 15px;
+  border-radius: 50%;
+  background-color: #f3f4f6;
+  border: none;
+  cursor: pointer;
   transition: background-color 0.3s ease;
 }
 
 #undoBtn {
-  margin-left: 10px;
-  padding: 10px 20px;
-  font-size: 16px;
-  background-color: #4d79ff;
-  color: white;
+  padding: 15px;
+  border-radius: 50%;
+  background-color: #fef3c7;
   border: none;
-  border-radius: 5px;
   cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   transition: background-color 0.3s ease;
 }
 #redoBtn {
-  margin-left: 10px;
-  padding: 10px 20px;
-  font-size: 16px;
-  background-color: #ffb84d;
-  color: white;
+  padding: 15px;
+  border-radius: 50%;
+  background-color: #dcfce7;
   border: none;
-  border-radius: 5px;
   cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   transition: background-color 0.3s ease;
 }
 #penBtn {
-  margin-left: 10px;
-  padding: 10px 20px;
-  font-size: 16px;
-  background-color: #4dff88;
-  color: white;
+  padding: 15px;
+  border-radius: 50%;
+  background-color: #e0f2fe;
   border: none;
-  border-radius: 5px;
   cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   transition: background-color 0.3s ease;
 }
 #eraserBtn {
-  margin-left: 10px;
-  padding: 10px 20px;
-  font-size: 16px;
-  background-color: #ffa64d;
-  color: white;
+  padding: 15px;
+  border-radius: 50%;
+  background-color: #fee2e2;
   border: none;
-  border-radius: 5px;
   cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   transition: background-color 0.3s ease;
+}
+#colorPicker {
+  border: none;
+  border-radius: 9999px;
+  padding: 0px;
 }
 label {
   font-family: "Arial", sans-serif;
@@ -110,17 +203,4 @@ label {
   margin: 0px 10px 0px 10px;
   font-size: 16px;
   font-weight: bold;
-}
-
-#rectangleBtn {
-  margin-left: 10px;
-  padding: 10px 20px;
-  font-size: 16px;
-  background-color: #b84dff;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  transition: background-color 0.3s ease;
 }

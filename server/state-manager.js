@@ -105,6 +105,7 @@ function undoRoomHistory(roomId, socketId) {
     return history.undoStack;
   }
   // remove stroke by the User, who belongs to
+  // const stack = history.undoStack;
   // for (let i = stack.length - 1; i >= 0; i--) {
   //   if (stack[i].socketId == socketId) {
   //     const [removed] = stack.splice(i, 1);
@@ -113,6 +114,7 @@ function undoRoomHistory(roomId, socketId) {
   //   }
   // }
 
+  // remove stroke globally
   const action = history.undoStack.pop();
   history.redoStack.push(action);
   console.log("undo hit by:", socketId);
@@ -125,8 +127,8 @@ function redoRoomHistory(roomId, socketId) {
   if (history.redoStack.length === 0) {
     return history.undoStack;
   }
-
-  // remove stroke by the User,who belongs to
+  // redo stroke by the User,who belongs to
+  // const redoStack = history.redoStack;
   // for (let i = redoStack.length - 1; i >= 0; i--) {
   //   if (redoStack[i].socketId === socketId) {
   //     const action = redoStack.splice(i, 1)[0];
@@ -135,9 +137,10 @@ function redoRoomHistory(roomId, socketId) {
   //   }
   // }
 
+  //redo strokes globally
   const action = history.redoStack.pop();
-  console.log("redo hit by:", socketId);
   history.undoStack.push(action);
+  console.log("redo hit by:", socketId);
   return history.undoStack;
 }
 

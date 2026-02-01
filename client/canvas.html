@@ -9,30 +9,48 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <div class="header">
-      <h1 class="heading">Collaborative Canvas</h1>
-    </div>
-    <div style="position: relative" class="canvasWrapper">
+    <div style="position: relative" class="canvasStage">
+      <div id="dotBackground"></div>
       <canvas id="myCanvas"></canvas>
       <canvas id="cursorLayer"></canvas>
+
+      <!-- header -->
+      <div class="header">
+        <h1 class="heading">Inkspace</h1>
+      </div>
+      <!-- tooltip -->
+      <div id="tooltip">
+        <div class="tooltip">
+          <button id="clearBtn">
+            <img src="./public/clear.svg" class="tooltip-img" />
+          </button>
+
+          <button id="penBtn">
+            <img src="./public/penicon.svg" class="tooltip-img" />
+          </button>
+          <button id="eraserBtn">
+            <img src="./public/erasericon.svg" class="tooltip-img" />
+          </button>
+          <button id="undoBtn">
+            <img src="./public/undo.svg" class="tooltip-img" />
+          </button>
+          <button id="redoBtn">
+            <img src="./public/redo.svg" class="tooltip-img" />
+          </button>
+        </div>
+        <label for="lineWidth">Stroke:</label>
+        <input type="range" id="lineWidth" min="1" max="15" value="4" />
+        <span id="lineWidthValue">4</span>
+        <label for="colorPicker">Color:</label>
+        <input type="color" id="colorPicker" />
+      </div>
+
+      <div id="onlineUsersCont">
+        <span>Online Users</span>
+        <ul id="onlineUsers"></ul>
+      </div>
     </div>
-    <div id="tootip">
-      <button id="clearBtn">Clear Canvas</button>
-      <button id="undoBtn">Undo</button>
-      <button id="redoBtn">Redo</button>
-      <button id="penBtn">Pen</button>
-      <button id="eraserBtn">Eraser</button>
-      <label for="lineWidth">Stroke:</label>
-      <input type="range" id="lineWidth" min="1" max="20" value="4" />
-      <span id="lineWidthValue">4</span>
-      <button id="rectangleBtn">Rectangle</button>
-      <label for="colorPicker">Choose Color:</label>
-      <input type="color" id="colorPicker" />
-    </div>
-    <div id="onlineUsersCont">
-      <h3>Online Users</h3>
-      <ul id="onlineUsers"></ul>
-    </div>
+
     <script src="http://localhost:3000/socket.io/socket.io.js"></script>
     <script type="module" src="socket.js"></script>
     <script type="module" src="canvas.js"></script>

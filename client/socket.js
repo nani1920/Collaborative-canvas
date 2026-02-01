@@ -2,12 +2,12 @@
 import {
   replayStroke,
   redrawRoomHistory,
-  localStrokes,
   drawCursors,
   drawLiveCursors,
   updateCursorArray,
   clearCanvas,
   renderOnlineUsers,
+  registerEmitters,
 } from "./canvas.js";
 
 const queryString = window.location.search;
@@ -20,6 +20,32 @@ const roomDetails = {
   roomId: roomId,
 };
 const socket = io("http://localhost:3000");
+
+// to register the events....
+registerEmitters({
+  emitMouseMove: (data) => {
+    socket.emit("canvas:mouse-move", data);
+  },
+  emitCursorMove: (data) => {
+    socket.emit("cursor:move", data);
+  },
+  emitCanvasMouseUp: (data) => {
+    socket.emit("canvas:mouse-up", data);
+  },
+  emitCursorLeave: () => {
+    socket.emit("cursor:leave");
+  },
+  emitCanvasClear: () => {
+    socket.emit("canvas:clear");
+  },
+  emitCanvasUndo: () => {
+    console.log("undo");
+    socket.emit("canvas:undo");
+  },
+  emitCanvasRedo: () => {
+    socket.emit("canvas:redo");
+  },
+});
 
 socket.on("connect", () => {
   console.log("connected");
@@ -34,10 +60,6 @@ socket.on("room:online-users", (users) => {
   renderOnlineUsers(users);
 });
 
-socket.on("canvas:receive-mouse-down", (data) => {
-  const { x, y, tool, startX, startY } = data;
-  // reMouseDown(x, y, tool, startX, startY);
-});
 socket.on("canvas:receive-mouse-move", (data) => {
   drawLiveCursors(data);
 });
@@ -65,5 +87,3 @@ socket.on("cursor:update-leave", ({ socketId }) => {
   console.log("cursor=leave:", socketId);
   updateCursorArray(socketId);
 });
-
-export { socket };
