@@ -1,8 +1,7 @@
 {
-  "version": 2,
-  "routes": [
-    { "src": "/(.*)\\.(css|js|png|jpg|jpeg|gif|svg|ico)$", "dest": "/$1.$2" },
-    { "src": "/canvas", "dest": "/canvas.html" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/canvas", "destination": "/canvas.html" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
