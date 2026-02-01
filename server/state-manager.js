@@ -1,8 +1,8 @@
 /** @format */
 
-const rooms = new Map();
-const users = new Map();
-const roomHistory = new Map();
+const rooms = new Map(); // roomId=> set(socketsId)
+const users = new Map(); // set(socketId) => {username,roomId}
+const roomHistory = new Map(); // roomId => {undoStack:[],redoStack:[]}
 
 //
 //room functions.
@@ -14,17 +14,25 @@ function addUserToRoom(roomDetails, socketId) {
   rooms.get(roomId).add(socketId);
   console.log("Added User to Room:", rooms);
 }
+
+function cleanUpRoomIfEmpty(roomId) {
+  if (rooms.has(roomId) && rooms.get(roomId).size === 0) {
+    rooms.delete(roomId);
+    roomHistory.delete(roomId);
+  }
+}
 function removeUserFromRoom(socketId) {
   const userDetails = getUserFromUsers(socketId);
+  if (!userDetails) return;
   const { roomId } = userDetails;
   if (rooms.has(roomId)) {
     const roomUser = rooms.get(roomId);
     if (roomUser) {
       rooms.get(roomId).delete(socketId);
     }
-
     console.log("removed rooms:", rooms);
   }
+  cleanUpRoomIfEmpty(roomId);
 }
 function getRoomId(socketId) {
   if (users.has(socketId)) {
@@ -32,7 +40,18 @@ function getRoomId(socketId) {
     return user.roomId;
   }
 }
-
+function getUsersFromRoom(roomId) {
+  if (!rooms.has(roomId)) {
+    return;
+  }
+  const users = rooms.get(roomId);
+  let result = [];
+  for (let socketId of users) {
+    const user = getUserFromUsers(socketId);
+    result.push(user);
+  }
+  return result;
+}
 //
 // user function
 function addUserToUsers(roomDetails, socketId) {
@@ -44,10 +63,11 @@ function addUserToUsers(roomDetails, socketId) {
   }
 }
 function getUserFromUsers(socketId) {
-  if (users.has(socketId)) {
-    const userDetails = users.get(socketId);
-    return userDetails;
+  if (!users.has(socketId)) {
+    return [];
   }
+  const userDetails = users.get(socketId);
+  return userDetails;
 }
 function removeUserfromUsers(socketId) {
   if (users.has(socketId)) {
@@ -57,42 +77,83 @@ function removeUserfromUsers(socketId) {
   return;
 }
 
+//roomHistory
 function createRoomHistory(roomId) {
   if (!roomHistory.has(roomId)) {
-    roomHistory.set(roomId, []);
+    roomHistory.set(roomId, {
+      undoStack: [],
+      redoStack: [],
+    });
   }
   return;
 }
-//roomHistory
+
 function addEventToRoomHistory(roomId, socketId, data) {
   createRoomHistory(roomId);
   const { tool, color, lineWidth, points } = data;
   let event = { socketId, tool, color, lineWidth, points };
-  roomHistory.get(roomId).push(event);
+  const history = roomHistory.get(roomId);
+  history.undoStack.push(event);
+  history.redoStack.length = 0;
   console.log(roomHistory);
 }
 
 function undoRoomHistory(roomId, socketId) {
-  const events = roomHistory.get(roomId) || [];
-  for (let i = events.length - 1; i >= 0; i--) {
-    if (events[i].socketId == socketId) {
-      events.splice(i, 1);
-      break;
-    }
+  createRoomHistory(roomId);
+  const history = roomHistory.get(roomId);
+  if (history.undoStack.length === 0) {
+    return history.undoStack;
   }
-  roomHistory.set(roomId, events);
+  // remove stroke by the User, who belongs to
+  // for (let i = stack.length - 1; i >= 0; i--) {
+  //   if (stack[i].socketId == socketId) {
+  //     const [removed] = stack.splice(i, 1);
+  //     history.redoStack.push(removed);
+  //     break;
+  //   }
+  // }
+
+  const action = history.undoStack.pop();
+  history.redoStack.push(action);
   console.log("undo hit by:", socketId);
-  return events;
+  return history.undoStack;
+}
+
+function redoRoomHistory(roomId, socketId) {
+  createRoomHistory(roomId);
+  const history = roomHistory.get(roomId);
+  if (history.redoStack.length === 0) {
+    return history.undoStack;
+  }
+
+  // remove stroke by the User,who belongs to
+  // for (let i = redoStack.length - 1; i >= 0; i--) {
+  //   if (redoStack[i].socketId === socketId) {
+  //     const action = redoStack.splice(i, 1)[0];
+  //     history.undoStack.push(action);
+  //     break;
+  //   }
+  // }
+
+  const action = history.redoStack.pop();
+  console.log("redo hit by:", socketId);
+  history.undoStack.push(action);
+  return history.undoStack;
 }
 
 function getRoomHistory(roomId) {
-  if (roomHistory.has(roomId)) {
-    return roomHistory.get(roomId);
+  if (!roomHistory.has(roomId)) {
+    return [];
   }
+  return roomHistory.get(roomId).undoStack;
 }
 function clearRoomHistory(roomId) {
+  createRoomHistory(roomId);
   if (roomHistory.has(roomId)) {
-    roomHistory.set(roomId, []);
+    const history = roomHistory.get(roomId);
+    history.undoStack.length = 0;
+    history.redoStack.length = 0;
+    console.log("cleared room history");
   }
 }
 
@@ -104,5 +165,9 @@ module.exports = {
   getRoomId,
   addEventToRoomHistory,
   undoRoomHistory,
+  redoRoomHistory,
   getUserFromUsers,
+  getRoomHistory,
+  clearRoomHistory,
+  getUsersFromRoom,
 };

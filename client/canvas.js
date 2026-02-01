@@ -3,24 +3,36 @@
 import { socket } from "./socket.js";
 // canvas setup
 let canvas = document.getElementById("myCanvas");
-
-canvas.width = window.innerWidth - 60;
-canvas.height = window.innerHeight * 0.7;
 let cursorCanvas = document.getElementById("cursorLayer");
-cursorCanvas.width = window.innerWidth - 60;
-cursorCanvas.height = window.innerHeight * 0.7;
+let ctx = canvas.getContext("2d");
 let cursorCtx = cursorCanvas.getContext("2d");
+
+// canvas.width = window.innerWidth - 60;
+// canvas.height = window.innerHeight * 0.7;
+// cursorCanvas.width = window.innerWidth - 60;
+// cursorCanvas.height = window.innerHeight * 0.7;
 canvas.style.cursor = "url('public/pen.png') 0 32 , auto";
 let isDrawing = false;
 let toolArray = { pen: "PEN", eraser: "ERASER", rectangle: "RECTANGLE" };
 let tool = toolArray.pen;
 let pencolor = "black";
+let lineWidth = 5;
 let otherCursors = {};
+let isCursorInsideCanvas = false;
 // get context
-let ctx = canvas.getContext("2d");
 ctx.fillStyle = "white";
 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+function resizeCanvas() {
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width;
+  canvas.height = rect.height;
+
+  cursorCanvas.width = rect.width;
+  cursorCanvas.height = rect.height;
+}
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
 // get canvas coordinates
 function getCanvasCoordinates(event) {
   const rect = canvas.getBoundingClientRect();
@@ -36,18 +48,20 @@ function getCanvasCoordinates(event) {
 let currentStroke = [];
 let localStrokes = [];
 // mouse events
+function mouseEnterEventTrigger(event) {
+  isCursorInsideCanvas = true;
+}
 function mouseDownEventTrigger(event) {
   const { x, y } = getCanvasCoordinates(event);
   isDrawing = true;
-
   currentStroke = [];
   ctx.beginPath();
   if (tool === toolArray.eraser) {
     ctx.globalCompositeOperation = "destination-out";
-    ctx.lineWidth = 10;
+    ctx.lineWidth = lineWidth;
   } else if (tool === toolArray.pen) {
     ctx.globalCompositeOperation = "source-over";
-    ctx.lineWidth = 4;
+    ctx.lineWidth = lineWidth;
     ctx.lineCap = "round";
     ctx.strokeStyle = pencolor;
     ctx.moveTo(x, y);
@@ -67,13 +81,13 @@ function mouseMoveEventTrigger(event) {
       y,
       tool,
       color: pencolor,
-      lineWidth: tool === toolArray.eraser ? 10 : 4,
+      lineWidth: lineWidth,
       socketId: socket.id,
     });
   }
 
   let now = Date.now();
-  if (now - lastEmit > 30) {
+  if (isCursorInsideCanvas && now - lastEmit > 30) {
     socket.emit("cursor:move", { x, y });
     lastEmit = now;
   }
@@ -89,7 +103,7 @@ function mouseUpEventTrigger(event) {
     socketId: socket.id,
     tool,
     color: pencolor,
-    lineWidth: tool === toolArray.eraser ? 10 : 4,
+    lineWidth: lineWidth,
     points: currentStroke,
   };
   localStrokes.push(strokeData);
@@ -97,9 +111,14 @@ function mouseUpEventTrigger(event) {
 }
 function mouseLeaveEventTrigger(event) {
   isDrawing = false;
+  isCursorInsideCanvas = false;
   ctx.beginPath();
+  socket.emit("cursor:leave");
 }
 
+canvas.addEventListener("mouseenter", (event) => {
+  mouseEnterEventTrigger(event);
+});
 canvas.addEventListener("mousedown", (event) => {
   mouseDownEventTrigger(event);
 });
@@ -119,8 +138,12 @@ canvas.addEventListener("mouseleave", (event) => {
 function clearCanvas() {
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+  localStrokes.length = 0;
 }
-document.getElementById("clearBtn").addEventListener("click", clearCanvas);
+document.getElementById("clearBtn").addEventListener("click", () => {
+  socket.emit("canvas:clear");
+  clearCanvas();
+});
 
 //
 // undo function
@@ -133,10 +156,13 @@ function undoCanvas() {
   }
   socket.emit("canvas:undo");
 }
-
 document.getElementById("undoBtn").addEventListener("click", undoCanvas);
+
+//
 // redo function
-function redoCanvas() {}
+function redoCanvas() {
+  socket.emit("canvas:redo");
+}
 document.getElementById("redoBtn").addEventListener("click", redoCanvas);
 
 //
@@ -151,11 +177,9 @@ function setTool(newTool) {
     canvas.style.cursor = "crosshair";
   }
 }
-
 document.getElementById("penBtn").addEventListener("click", () => {
   setTool(toolArray.pen);
 });
-
 document.getElementById("eraserBtn").addEventListener("click", () => {
   setTool(toolArray.eraser);
 });
@@ -170,6 +194,15 @@ function setColor(newColor) {
 }
 document.getElementById("colorPicker").addEventListener("change", (event) => {
   setColor(event.target.value);
+});
+
+// set lineWidth
+function setLineWidth(newLineWidth) {
+  lineWidth = newLineWidth;
+  document.getElementById("lineWidthValue").textContent = newLineWidth;
+}
+document.getElementById("lineWidth").addEventListener("input", (event) => {
+  setLineWidth(event.target.value);
 });
 
 function replayStroke(strokes) {
@@ -200,32 +233,71 @@ function reMouseDown(x, y, tool) {
   ctx.beginPath();
   if (tool === toolArray.eraser) {
     ctx.globalCompositeOperation = "destination-out";
-    ctx.lineWidth = 10;
+    ctx.lineWidth = lineWidth;
   } else if (tool === toolArray.pen) {
     ctx.globalCompositeOperation = "source-over";
-    ctx.lineWidth = 4;
+    ctx.lineWidth = lineWidth;
     ctx.lineCap = "round";
     ctx.strokeStyle = pencolor;
     ctx.moveTo(x, y);
   }
 }
+const color_pallete = [
+  "#E53935", // red
+  "#D81B60", // pink
+  "#8E24AA", // purple
+  "#5E35B1", // deep purple
+  "#3949AB", // indigo
+  "#1E88E5", // blue
+  "#039BE5", // light blue
+  "#00897B", // teal
+  "#43A047", // green
+  "#7CB342", // light green
+  "#FDD835", // yellow
+  "#FB8C00", // orange
+  "#F4511E", // deep orange
+  "#6D4C41", // brown
+  "#546E7A", // blue grey
+];
+const cursorColor = {};
+function getCursorColor(socketId) {
+  if (cursorColor[socketId]) return cursorColor[socketId];
+  const randomIndex = Math.floor(Math.random() * color_pallete.length);
+  const color = color_pallete[randomIndex];
+  cursorColor[socketId] = color;
+  return color;
+}
+let cursorImg = new Image();
+let cursorImgLoaded = false;
+cursorImg.src = "public/cursor.png";
+cursorImg.onload = () => {
+  cursorImgLoaded = true;
+};
 
-function drawCursors(data) {
-  const { x, y, username, socketId } = data;
-  otherCursors[socketId] = { x, y, username };
+function redrawAllCursors() {
   cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
   Object.values(otherCursors).forEach((cursor) => {
-    console.log(cursor);
-    cursorCtx.beginPath();
-    cursorCtx.arc(cursor.x, cursor.y, 5, 0, Math.PI * 2);
-    cursorCtx.fillStyle = "red";
-    cursorCtx.fill();
-    cursorCtx.closePath();
+    const color = getCursorColor(cursor.socketId);
 
-    cursorCtx.font = "12px Arial";
-    cursorCtx.fillStyle = "black";
+    cursorCtx.beginPath();
+    cursorCtx.drawImage(cursorImg, cursor.x - 10, cursor.y - 10, 25, 25);
+
+    cursorCtx.font = "600 16px 'Segoe UI', system-ui, sans-serif";
+    cursorCtx.fillStyle = color;
     cursorCtx.fillText(cursor.username, cursor.x + 8, cursor.y - 8);
   });
+}
+function drawCursors(data) {
+  const { x, y, username, socketId } = data;
+  otherCursors[socketId] = { x, y, username, socketId };
+  redrawAllCursors();
+}
+
+function updateCursorArray(socketId) {
+  delete otherCursors[socketId];
+  console.log("otherCursors:", otherCursors);
+  console.log("cursorColor:", cursorColor);
+  redrawAllCursors();
 }
 
 let remoteLastPoints = {};
@@ -250,6 +322,18 @@ function drawLiveCursors(data) {
   ctx.closePath();
   remoteLastPoints[socketId] = { x, y };
 }
+
+function renderOnlineUsers(users) {
+  const userListEl = document.getElementById("onlineUsers");
+  userListEl.innerHTML = "";
+  users.forEach((user) => {
+    const li = document.createElement("li");
+    li.textContent = user.username;
+    console.log(li);
+    userListEl.appendChild(li);
+  });
+}
+
 export {
   reMouseDown,
   replayStroke,
@@ -257,4 +341,7 @@ export {
   localStrokes,
   drawCursors,
   drawLiveCursors,
+  updateCursorArray,
+  clearCanvas,
+  renderOnlineUsers,
 };
